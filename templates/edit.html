@@ -1,0 +1,53 @@
+<head>
+  <title>Einen Eintrag &Auml;ndern</title>
+</head>
+<body>
+  <form id="new-expense" method="post">
+    <h1>Neue Ausgabe eintragen f&uuml;r </h1>
+    <p><label>Kommentar</label><input type="text" size="100" name="kommentar" id="kommentar"></p>
+    <p><label>Betrag</label><input type="text" size="10" name="betrag" id="betrag"></p>
+    <p><label>Art der Ausgabe</label><input type="text" size="20" name="kategorie" id="kategorie"></p>
+    <p>
+      <input type="radio" name="type" value="einnahme">Einnahme<br>
+      <input type="radio" name="type" value="ausgabe" checked="checked">Ausgabe<br>
+    </p>
+
+    <p><input type="submit" value="&Uuml;bernehmen &rarr;"></p>
+  </form>
+  <p id="result"></p>
+  <input type="button" value="Zum Index &rarr;" id="back">
+</body>
+  <script src="/_utils/script/json2.js"></script>
+  <script src="/_utils/script/jquery.js?1.2.6"></script>
+  <script src="/_utils/script/jquery.couch.js?0.8.0"></script>
+  <script src="/_utils/script/jquery.cookies.js"></script>
+  <script src="<%= assets %>/vendor/couchapp/jquery.couchapp.js"></script>
+  <script type="text/javascript" charset="utf-8">
+
+  $.CouchApp(function(app) {
+    var dbname = document.location.href.split('/')[3];
+    var design = unescape(document.location.href).split('/')[5];
+    var DB = $.couch.db(dbname);
+    var d = new Date();
+    var date = [ d.getFullYear(), d.getMonth() + 1, d.getDate() ];
+    var editfrom = app.docForm("form#new-expense", {
+      id: <%= docid %>,
+      fields : [ "kommentar", "betrag", "kategorie", "type" ],
+      template : { "date" : date, "betrag" : 0, "type" : "ausgabe" },
+      beforeSave  : function(doc) {
+        var b = Number(doc.betrag);
+        if (b == "NaN") throw ({error : "Betrag ist keine Zahl"})
+        else doc.betrag = b;
+        doc.kategorie = doc.kategorie.toLowerCase();
+      },
+      success : function( response ) {
+        $("#result").text("Success");
+        app.go("<%= assets %>/index.html");
+      }
+    });
+    $("#back").click( function () {
+      app.go("<%= assets %>/index.html");
+    });
+  });
+  </script>
+</html>

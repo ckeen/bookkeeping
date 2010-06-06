@@ -1,0 +1,14 @@
+/* add styles here */
+body {font-family:Trebuchet MS,Tahoma,Verdana,Arial,sans-serif; font-size: 14px }
+h1 { text-align: center }
+tr.row0 { background-color: #FCF6CF; }
+tr.row1 { background-color: #FEFEF2; }
+td.value { text-align: right;}
+div.loading {
+    position:absolute;
+    top:0;left:0; /*This may prevent it from being seen if the user has scrolled down */
+    color:#fff;
+    padding:2px 2px 2px 20px;
+    background:red url(img/ajax-loader.gif) no-repeat 2px;
+    display:none;
+}

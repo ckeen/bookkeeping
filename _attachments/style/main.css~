@@ -1,0 +1,7 @@
+/* add styles here */
+body {font-family:Trebuchet MS,Tahoma,Verdana,Arial,sans-serif; font-size: 14px }
+h1 { text-align: center }
+tr.row0 { background-color: #FCF6CF; }
+tr.row1 { background-color: #FEFEF2; }
+td.value { text-align: right;}
+

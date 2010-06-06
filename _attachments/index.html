@@ -1,0 +1,371 @@
+
+<html>
+  <head>
+    <title>Haushaltsbuch</title>
+    <link rel="stylesheet" href="style/ui-lightness/jquery-ui-1.7.2.custom.css" type="text/css">
+    <link rel="stylesheet" href="style/main.css" type="text/css">
+    <link rel="stylesheet" href="style/tufte-graph.css" type="text/css" media="screen" charset="utf-8" />
+    </head>
+  <body>
+    <h1>Haushaltsbuch</h1>
+    <div id="tabs">
+        <ul>
+		<li><a href="#tabs-1">Einnahmen</a></li>
+		<li><a href="#tabs-2">Tagesausgaben</a></li>
+		<li><a href="#tabs-3">Monatsausgaben</a></li>
+	</ul>
+
+       <div id="tabs-1">
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-income" type="text"><div class="loading" id="incomes-loading">laden...</div></p>
+          <table id="incomes"></table>
+          <table id="incomes-sum"></table>
+          <div id="new-income"></div>
+       </div>
+       <div id="tabs-2">
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-daily-expense" type="text"><div class="loading" id="expenses-loading">laden...</div></p>
+          <table id="expenses"></table>
+          <div id="results"><table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="saldo"></tr></table></div>
+          <div id="daily-expense"></div>
+       </div>
+       <div id="tabs-3">
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-expense" type="text"><div class="loading" id="month-loading">laden...</div></p>
+          <div id="monthly-view">
+             <table id="month"></table>
+             <table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="monthly_saldo"></tr></table>
+             <div id="monthly-expense"></div>
+          </div>
+       </div>
+    </div>
+    <div class='graph-header'>
+    <h3>Jahres&uuml;bersicht</h3>
+    <p>Angezeigt wird das laufende Jahr, Betr&auml;ge in Euro</p>
+    </div>
+    <div id='stacked-graph' class="graph" class="loading" style="width: 540px; height: 400px;"></div>
+    </div>
+    <div id ="status">Loading...</div>
+   </body>
+  <script src="/_utils/script/json2.js"></script>
+  <script src="/_utils/script/jquery.js"></script>
+  <script src="/_utils/script/jquery.couch.js"></script>
+  <script src="vendor/couchapp/jquery.couchapp.js"></script>
+  <script src="script/jquery-ui-1.8.2.custom.min.js"></script>
+  <script type="text/javascript" src="script/raphael.js"></script>
+  <script type="text/javascript" src="script/jquery.enumerable.js"></script>
+  <script type="text/javascript" src="script/jquery.tufte-graph.js"></script>
+  <script type="text/javascript" charset="utf-8">
+    $.couch.app(function(app) {
+      var dbname = document.location.href.split('/')[3];
+      var design = unescape(document.location.href).split('/')[5];
+      var DB = $.couch.db(dbname);
+      var Monate = ["Januar", "Februar", "M&auml;rz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+      var today = new Date;
+ 
+    function getCategories(id){
+        DB.view(design+"/available_categories?group=true",
+         {success: function(json) {
+           var categories = json.rows.map(function(c) { return c.key });
+           $( id ).autocomplete({source : categories });
+         }})
+    }
+
+    function addEntry(title, form_id, kind, date, success, cancel) {
+       var form = '<form id="'+ form_id + '">' +
+          '<h2>'+ title + " - " + $(date).val() + '</h2>' +
+          '<table>'+
+          '<tr><td><input type="text" size="15" name="kategorie" id="kategorie"></td>' +
+          '<td><input type="text" size="10" name="betrag" id="betrag"></td>' +
+          '<td><input type="text" size="50" name="kommentar" id="kommentar"></td>' +
+          '<td><input type="button" value="Abbrechen" id="abbruch-form'+ form_id +'"></td>' +
+          '<td><input type="submit" value="&Uuml;bernehmen &rarr;"></td></tr>' +
+          '<tr><th>Kategorie</th><th>Betrag</th><th>Kommentar</th></tr></table>' +
+        '</form>';
+      $('#' + form_id ).html(form);
+
+      getCategories("#kategorie");
+
+      var date = $( date ).val().split("-").map(function(e){return Number(e)});
+      var editfrom = app.docForm('form#' + form_id , {
+        fields : [ "kommentar", "betrag", "kategorie", "type" ],
+        template : { "date" : date, "betrag" : 0, "type" : kind, "kommentar" : "" },
+        beforeSave  : function(doc) {
+          var b = Number(doc.betrag);
+          if (b == "NaN") throw ({error : "Betrag ist keine Zahl"})
+          else doc.betrag = b;
+          doc.kategorie = doc.kategorie.toLowerCase();
+        },
+        success : function( response ){ success( response ) } 
+      });
+      $('#abbruch-form' + form_id ).live('click', function(){ cancel() });
+    }
+
+    function addExpense( e ) {
+       addEntry("Neue Ausgabe", e.attr("id"), "ausgabe","#datum-" + e.attr("id"),
+                function(response) {
+                   $("#status").text("Success");
+                   e.text('');
+                   render_day($("#datum-" + e.attr("id")).val().split("-"));
+                   render_month($("#datum-" + e.attr("id")).val().split("-"));
+		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+                 },
+                 function() { 
+                    e.text('');
+                    render_day($("#datum-" + e.attr("id")).val().split("-"));
+                 });
+    }
+
+    function addIncome() {
+       addEntry("Neue Einnahme", "new-income", "einnahme", "#datum-monthly-income",
+                function(response) {
+                   $("#status").text("Success");
+                   $("#new-income").text('');
+                   render_month($("#datum-monthly-income").val().split("-"));
+		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+                },
+                function() { 
+                   $("#new-income").text('');
+                   render_day($("#datum-monthly-income").val().split("-"));
+                });
+    }
+
+    function editEntry(id, kind){
+
+       var value = 0;
+       var kommentar = "";
+       var date = [ ];
+
+       date = $("#" + id + "-date").text().slice(0).split("-");
+       value = $("#" + id + "-value").text().slice(0);
+       kommentar = $("#" + id + "-comment").text().slice(0);
+
+       $("#"+ id + "-comment").html('<form id="' + kind + '-' + id +'" method="post"><input type="text" size="15" id="kommentar-' + id + '" value="' + kommentar +'">');
+       $("#"+ id + "-value").html('<input type="text" size="15" id="betrag-' + id +'" value="' + value + '">');
+       $("#edit-" + kind+ "-" + id).html('<span id="submit-' + id + '" class="ui-icon ui-icon-circle-check"></form>');
+       $("#cancel-" + kind + "-" + id).html('<span class="ui-icon ui-icon-circle-close"></span>');
+       $("#edit-"+ kind + "-" + id).click( function() { $("form#" + kind + "-" + id).submit() });
+       $("#cancel-" + kind + "-" + id).click( function() {
+          $("#" + id + "-comment").text(kommentar);
+          $("#" + id + "-value").text(Number(value).toFixed(2));
+          $("#cancel-" + kind + "-" + id).text(""); 
+	  $("#edit-" + kind+ "-" + id).html('<span class="ui-icon ui-icon-pencil"></span>');
+       });
+
+       var editfrom = app.docForm('form#' + kind + '-' + id, {
+         id: id,
+         fields : [],
+         template : { "date" : date, "type" : kind },
+         beforeSave  : function(doc) {
+           var b = Number($("#betrag-" + id).val());
+           if (b == "NaN") throw ({error : "Betrag ist keine Zahl"})
+           else doc.betrag = b;
+           doc.kommentar = $("#kommentar-" + id).val();
+           doc.kategorie = doc.kategorie.toLowerCase();
+         },
+         success : function( response ) {
+           $("#status").text("Success");
+           if (kind == "expense"){
+             render_day($("#datum-daily-" + kind).val().split("-"));
+           }
+           render_month($("#datum-monthly-" + kind).val().split("-"));
+         }
+       });
+    }
+ 
+    function deleteEntry( id ){
+      $.ajax({ url : "/" + dbname + "/" + id,
+               data : "",
+               success : function(data){
+                    var rev = data["_rev"];
+                    $.ajax({ type : "DELETE",
+                             url: "/" + dbname + "/" + id + "?rev=" + rev,
+                             success: function( m ){ $("#row-"+id).remove(); 
+			                             graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);} });},
+               dataType : "json"});
+    }
+
+    function render_incomes(startdate, enddate, e, s){
+       var header_rows = [];
+       var data_rows = [];
+       var sum_income = 0;
+       var res = {};
+       var toggle = 1;
+
+       $("#status").text("Loading...");
+        $( e + "-loading").show();
+       DB.view(design+"/einnahmen?startkey=[[" + startdate.join(",") + "],\"\"];endkey=[[" + enddate.join(",") + "],\"\"]",{success: function(json) {
+           data_rows = json.rows.map(function(row) {
+             r = [];
+             k = [];
+             id = row.key[2];
+             r.push('<td class="value"><div id="' + id + '-value">' + row.value.betrag.toFixed(2) + '</div></td>');
+             k.push(row.value.kommentar);
+             sum_income = sum_income + row.value.betrag;
+             toggle = toggle ? 0 : 1;
+           return '<tr class="row' + toggle +'" id="row-' + id +'"><td id="'+ id + '-date">' +
+                  row.key[0].join('-') + '</td><td><div id="' + id + '-comment">' +
+                  k.join(",") +'</div></td>' + r.join('') +
+                  '<td><div id="edit-income-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' + 
+                  '<td><div id="cancel-income-' + id + '"></div></td>' +
+                  '<td><div id="delete-' + id + '"><span class="ui-icon ui-icon-trash"></div></td></tr>';
+         });
+      
+	 $( e  + "-loading" ).hide(); 
+         $( e ).html( header_rows + data_rows.join('') + '<td colspan="4"><hr></td>' +
+                   '<td><div id="new-income-dialog" rel="edit-new-income"><span class="ui-icon ui-icon-circle-plus"></span></div></td>');
+         s.html( '<tr><td>Summe Einkommen</td><td>' +
+                '<td class="value">' + sum_income.toFixed(2) + '</td></tr>');
+       }});
+     }
+
+     function render_expenses(startdate, enddate, e, s, dialog_id){
+        var header_rows = [];
+        var data_rows = [];
+        var categories = [];
+        var sum_expenses = 0;
+        var res = {};
+        var toggle = 1;
+ 
+        $("#status").text("Loading...");
+        $( e + "-loading").show();
+        DB.view(design+"/available_categories?group=true",
+         {success: function(json) {
+
+           categories = json.rows.map(function(c) { return { name : c.key , summe : 0}});
+           categories["Kommentar"]= 0;
+           header_rows = '<tr id="header-row"><th></th>' + '<th>Kommentar</th>' + categories.map(function(e) {
+            return '<th>' + e.name + '</th>'}).join(' ') +
+            '<td><div id="' + dialog_id + '" rel="edit-new-expense"><span class="ui-icon ui-icon-circle-plus"></span></div></td>' + '</tr>';
+
+           $("#status").text("getting expenses...");
+
+           DB.view(design+"/ausgaben?startkey=[[" + startdate.join(",") + "]];endkey=[[" + enddate.join(",") + "]]",
+            {success: function(json) {
+             data_rows = json.rows.map(function(row) {
+               r = [];
+               k = [];
+               id = row.key[2];
+               for each (var c in categories) {
+                 if (row.key[1] == c.name){
+                   r.push('<td class="value"><div id="' + id + '-value">' + row.value.betrag.toFixed(2) + '</div></td>');
+                   k.push(row.value.kommentar);
+                   c.summe += row.value.betrag;
+                 } else {
+                   r.push('<td></td>');
+                 }
+               }
+               toggle = toggle ? 0 : 1;
+               return '<tr class="row' + toggle + '" id="row-' + id +'"><td id="'+ id + '-date">' +
+                      row.key[0].join('-') + '</td><td><div id="' + id + '-comment">' +
+                      k.join(",") +'</div></td>' + r.join('') +
+                      '<td><div id="edit-expense-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' + 
+                      '<td><div id="cancel-expense-' + id + '"></div></td>' +
+                      '<td><div id="delete-' + id + '"><span class="ui-icon ui-icon-trash"></div></td></tr>';
+             })
+             sums = '<tr><td>Summe d. Einzelposten</td><td>' +
+                    categories.map( function (c) {
+                      if (c.summe > 0) {
+                        sum_expenses = sum_expenses + c.summe;
+                        return '<td class="value">' + c.summe.toFixed(2) + '</td>'
+                      } else {
+                         return '<td></td>'
+                      }}).join('') + '</tr>';
+
+             $( e  + "-loading" ).hide(); 
+
+             $( e ).html( header_rows + data_rows.join('') + ((data_rows.length > 30)? header_rows : "") + sums);
+             s.html('<tr><td>Summe Ausgaben</td><td class="value">' + sum_expenses.toFixed(2) + '</td></tr>');
+         }});
+       }});
+      }
+
+      function render_day(date){
+        var date1 = date.map(function(e){return Number(e)}).slice(0);
+        var date2 = date.map(function(e){return Number(e)}).slice(0);
+        date2[2] = date2[2]+1;
+        var res = render_expenses( date1, date2, "#expenses", $("#saldo"), "new-daily-expense-dialog" );
+       $("#status").text("done.");
+     }
+
+     function render_month(date){
+        var date1 = date.map(function(e){return Number(e)}).slice(0);
+        var date2 = date.map(function(e){return Number(e)}).slice(0);
+        date1[2] = 1;
+        date2[2] = 32;
+        render_incomes( date1, date2, "#incomes", $("#incomes-sum") );
+        var res = render_expenses( date1, date2, "#month", $("#monthly_saldo"), "new-monthly-expense-dialog" );
+        $("#status").text("done.");
+     }
+
+
+     render_month([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+     render_day([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+
+     $("#new-daily-expense-dialog").live('click', function(e){ addExpense( $("#daily-expense") ) });
+     $("#new-monthly-expense-dialog").live('click', function(e){ addExpense( $("#monthly-expense") ) });
+     $("#new-income-dialog").live('click', function(e){ addIncome() });
+
+     $("div[id^='edit-']").live('click', function(e){
+         var id = this.id.split('-')[2];
+         var kind = this.id.split('-')[1];
+         $("#status").text(id + " clicked.");
+         editEntry(id, kind);
+       });
+
+     $("div[id^='delete-']").live('click', function(e){
+         var id = this.id.split('-')[1];
+         deleteEntry( id );
+     });
+
+      
+     $("#datum-monthly-income").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
+     $('#datum-monthly-income').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
+     $("#datum-monthly-income").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){ render_month(dateText.split("-"));}});
+     $("#datum-daily-expense").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
+     $('#datum-daily-expense').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
+     $("#datum-daily-expense").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){render_day(dateText.split("-"));}});
+     $("#datum-monthly-expense").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
+     $('#datum-monthly-expense').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
+     $("#datum-monthly-expense").datepicker({dateFormat : "yy-mm", onSelect : function(dateText, inst){dateText += "-1"; render_month(dateText.split("-"));}});
+     $("#tabs").tabs();
+
+     function graph_monthly_expenses( date ){
+             DB.view(design+"/available_categories?group=true",
+             { success : function(json) {
+                     var categories = json.rows.map(function(r) { return r.key; });
+		     DB.view(design+"/expenses_by_category?startkey=[" + date[0] + ",1];endkey=[" + date[0]+1 + ",1];group=true",
+		     { success : function(json) {
+                       var months = {};
+                       var year = [];
+		       json.rows.forEach( function( r ) { if (months[r.key[1]] == undefined) { months[r.key[1]] = {}};
+			                                  if (months[r.key[1]][r.key[2]] == undefined) { months[r.key[1]][r.key[2]] = 0};
+                                                          months[r.key[1]][r.key[2]] = r.value;});
+                       for ( var i in months){
+                         var month_row = [];
+                         for ( var j in categories ){
+                           if ( months[i][categories[j]] == undefined ) {
+                             month_row.push( 0 );
+                           } else {
+                             month_row.push ( months[i][categories[j]] );
+                           }
+                         }
+                         year.push([ month_row, { label : Monate[i-1]} ]);
+                       }
+	     jQuery('#stacked-graph').tufteBar({
+                colors : ['#f63353','#fead76','#107279','#10fa1bc','#1181bf','#120902','#129105','#131848','#13a04b','#1427ee','#14a8b1','#1532d4','#15bcf7','#16671a','#16c13d','#175b60','#17d583','#186fa6','#18ecc9','#1973ec'],
+		data: year,
+		barLabel:  function(index) {
+		amount = ($(this[0]).sum()).toFixed(0);
+		return $.tufteBar.formatNumber(amount);
+		},
+		axisLabel: function(index) { return this[1].label },
+		legend: {
+			data: categories
+			}
+
+	    });
+     }});
+   }});
+   }
+   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+ });
+  </script>
+</html>
