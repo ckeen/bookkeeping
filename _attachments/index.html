@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style/tufte-graph.css" type="text/css" media="screen" charset="utf-8" />
     </head>
   <body>
+    <div id="loader" class="loading">... ich muß nachdenken ...</div>
     <h1>Haushaltsbuch</h1>
     <div id="tabs">
         <ul>
@@ -16,19 +17,19 @@
 	</ul>
 
        <div id="tabs-1">
-          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-income" type="text"><div class="loading" id="incomes-loading">laden...</div></p>
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-income" type="text"></p>
           <table id="incomes"></table>
           <table id="incomes-sum"></table>
           <div id="new-income"></div>
        </div>
        <div id="tabs-2">
-          <p>&Uuml;bersicht f&uuml;r <input id="datum-daily-expense" type="text"><div class="loading" id="expenses-loading">laden...</div></p>
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-daily-expense" type="text"></p>
           <table id="expenses"></table>
           <div id="results"><table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="saldo"></tr></table></div>
           <div id="daily-expense"></div>
        </div>
        <div id="tabs-3">
-          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-expense" type="text"><div class="loading" id="month-loading">laden...</div></p>
+          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-expense" type="text"></p>
           <div id="monthly-view">
              <table id="month"></table>
              <table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="monthly_saldo"></tr></table>
@@ -42,7 +43,7 @@
     </div>
     <div id='stacked-graph' class="graph" class="loading" style="width: 540px; height: 400px;"></div>
     </div>
-    <div id ="status">Loading...</div>
+    <div id ="dialog-confirm" title="Eintrag wirklich löschen?"><p id="dialog-confirm-text"></p></div>
    </body>
   <script src="/_utils/script/json2.js"></script>
   <script src="/_utils/script/jquery.js"></script>
@@ -59,11 +60,27 @@
       var DB = $.couch.db(dbname);
       var Monate = ["Januar", "Februar", "M&auml;rz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
       var today = new Date;
- 
+      var load_ref = 0; 
+
+    function load(){
+      load_ref = load_ref + 1;
+      $( "#loader" ).show();
+    }
+
+    function ready() {
+      if (load_ref > 0){
+        load_ref = load_ref - 1;
+      }
+      if (load_ref == 0 ){
+        $("#loader").hide();
+      }
+    }
+
     function getCategories(id){
         DB.view(design+"/available_categories?group=true",
          {success: function(json) {
            var categories = json.rows.map(function(c) { return c.key });
+           ready();
            $( id ).autocomplete({source : categories });
          }})
     }
@@ -79,8 +96,8 @@
           '<td><input type="submit" value="&Uuml;bernehmen &rarr;"></td></tr>' +
           '<tr><th>Kategorie</th><th>Betrag</th><th>Kommentar</th></tr></table>' +
         '</form>';
+      load();
       $('#' + form_id ).html(form);
-
       getCategories("#kategorie");
 
       var date = $( date ).val().split("-").map(function(e){return Number(e)});
@@ -92,6 +109,7 @@
           if (b == "NaN") throw ({error : "Betrag ist keine Zahl"})
           else doc.betrag = b;
           doc.kategorie = doc.kategorie.toLowerCase();
+          load();
         },
         success : function( response ){ success( response ) } 
       });
@@ -101,7 +119,7 @@
     function addExpense( e ) {
        addEntry("Neue Ausgabe", e.attr("id"), "ausgabe","#datum-" + e.attr("id"),
                 function(response) {
-                   $("#status").text("Success");
+                   ready();
                    e.text('');
                    render_day($("#datum-" + e.attr("id")).val().split("-"));
                    render_month($("#datum-" + e.attr("id")).val().split("-"));
@@ -116,7 +134,7 @@
     function addIncome() {
        addEntry("Neue Einnahme", "new-income", "einnahme", "#datum-monthly-income",
                 function(response) {
-                   $("#status").text("Success");
+                   ready();
                    $("#new-income").text('');
                    render_month($("#datum-monthly-income").val().split("-"));
 		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
@@ -159,9 +177,10 @@
            else doc.betrag = b;
            doc.kommentar = $("#kommentar-" + id).val();
            doc.kategorie = doc.kategorie.toLowerCase();
+           load();
          },
          success : function( response ) {
-           $("#status").text("Success");
+           ready();
            if (kind == "expense"){
              render_day($("#datum-daily-" + kind).val().split("-"));
            }
@@ -171,15 +190,35 @@
     }
  
     function deleteEntry( id ){
-      $.ajax({ url : "/" + dbname + "/" + id,
-               data : "",
-               success : function(data){
-                    var rev = data["_rev"];
-                    $.ajax({ type : "DELETE",
-                             url: "/" + dbname + "/" + id + "?rev=" + rev,
-                             success: function( m ){ $("#row-"+id).remove(); 
-			                             graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);} });},
-               dataType : "json"});
+      $("#dialog-confirm-text").html("</center>Eintrag vom <br/>" + $("#"+id+"-date").text() +"<br/>" + 
+                                     $("#"+ id + "-comment").text() +"<br/>wirklich löschen?</center>");
+      $("#dialog-confirm").dialog({
+                        resizable: false,
+			height:240,
+			modal: true,
+			buttons: {
+				'Löschen': function() {
+                                   load();
+                                   $.ajax({ url : "/" + dbname + "/" + id,
+                                   data : "",
+                                   success : function(data){
+                                      var rev = data["_rev"];
+                                      $.ajax({ type : "DELETE",
+                                      url: "/" + dbname + "/" + id + "?rev=" + rev,
+                                      success: function( m ){ 
+                                        ready();
+                                        $("#row-"+id).remove(); 
+			                graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);} });},
+                                   dataType : "json"});
+
+					$(this).dialog('close');
+				},
+				Cancel: function() {
+					$(this).dialog('close');
+				}
+			}
+		});
+
     }
 
     function render_incomes(startdate, enddate, e, s){
@@ -189,8 +228,9 @@
        var res = {};
        var toggle = 1;
 
-       $("#status").text("Loading...");
-        $( e + "-loading").show();
+       load();
+       $( e ).fadeOut( 500 );
+       s.fadeOut( 500 );
        DB.view(design+"/einnahmen?startkey=[[" + startdate.join(",") + "],\"\"];endkey=[[" + enddate.join(",") + "],\"\"]",{success: function(json) {
            data_rows = json.rows.map(function(row) {
              r = [];
@@ -208,11 +248,13 @@
                   '<td><div id="delete-' + id + '"><span class="ui-icon ui-icon-trash"></div></td></tr>';
          });
       
-	 $( e  + "-loading" ).hide(); 
+         ready();
          $( e ).html( header_rows + data_rows.join('') + '<td colspan="4"><hr></td>' +
                    '<td><div id="new-income-dialog" rel="edit-new-income"><span class="ui-icon ui-icon-circle-plus"></span></div></td>');
          s.html( '<tr><td>Summe Einkommen</td><td>' +
                 '<td class="value">' + sum_income.toFixed(2) + '</td></tr>');
+         $( e ).fadeIn( 100 );
+         s.fadeIn( 100 );
        }});
      }
 
@@ -224,8 +266,10 @@
         var res = {};
         var toggle = 1;
  
-        $("#status").text("Loading...");
-        $( e + "-loading").show();
+        load();
+        $( e ).fadeOut( 500 );
+        s.fadeOut( 500 );
+
         DB.view(design+"/available_categories?group=true",
          {success: function(json) {
 
@@ -235,7 +279,6 @@
             return '<th>' + e.name + '</th>'}).join(' ') +
             '<td><div id="' + dialog_id + '" rel="edit-new-expense"><span class="ui-icon ui-icon-circle-plus"></span></div></td>' + '</tr>';
 
-           $("#status").text("getting expenses...");
 
            DB.view(design+"/ausgaben?startkey=[[" + startdate.join(",") + "]];endkey=[[" + enddate.join(",") + "]]",
             {success: function(json) {
@@ -269,10 +312,11 @@
                          return '<td></td>'
                       }}).join('') + '</tr>';
 
-             $( e  + "-loading" ).hide(); 
-
+             ready();
              $( e ).html( header_rows + data_rows.join('') + ((data_rows.length > 30)? header_rows : "") + sums);
              s.html('<tr><td>Summe Ausgaben</td><td class="value">' + sum_expenses.toFixed(2) + '</td></tr>');
+             $( e ).fadeIn( 100 );
+             s.fadeIn( 100 );
          }});
        }});
       }
@@ -282,7 +326,6 @@
         var date2 = date.map(function(e){return Number(e)}).slice(0);
         date2[2] = date2[2]+1;
         var res = render_expenses( date1, date2, "#expenses", $("#saldo"), "new-daily-expense-dialog" );
-       $("#status").text("done.");
      }
 
      function render_month(date){
@@ -292,7 +335,6 @@
         date2[2] = 32;
         render_incomes( date1, date2, "#incomes", $("#incomes-sum") );
         var res = render_expenses( date1, date2, "#month", $("#monthly_saldo"), "new-monthly-expense-dialog" );
-        $("#status").text("done.");
      }
 
 
@@ -306,7 +348,6 @@
      $("div[id^='edit-']").live('click', function(e){
          var id = this.id.split('-')[2];
          var kind = this.id.split('-')[1];
-         $("#status").text(id + " clicked.");
          editEntry(id, kind);
        });
 
@@ -328,6 +369,7 @@
      $("#tabs").tabs();
 
      function graph_monthly_expenses( date ){
+             load();
              DB.view(design+"/available_categories?group=true",
              { success : function(json) {
                      var categories = json.rows.map(function(r) { return r.key; });
@@ -338,6 +380,8 @@
 		       json.rows.forEach( function( r ) { if (months[r.key[1]] == undefined) { months[r.key[1]] = {}};
 			                                  if (months[r.key[1]][r.key[2]] == undefined) { months[r.key[1]][r.key[2]] = 0};
                                                           months[r.key[1]][r.key[2]] = r.value;});
+                       ready();
+
                        for ( var i in months){
                          var month_row = [];
                          for ( var j in categories ){
