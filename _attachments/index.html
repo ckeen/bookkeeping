@@ -23,13 +23,17 @@
           <div id="new-income"></div>
        </div>
        <div id="tabs-2">
-          <p>&Uuml;bersicht f&uuml;r <input id="datum-daily-expense" type="text"></p>
+          <p><div id="prev-day" class="ui-icon ui-icon-circle-triangle-w">Vorheriger Tag</div>
+            &Uuml;bersicht f&uuml;r <input id="datum-daily-expense" type="text">
+            <div id="next-day" class="ui-icon ui-icon-circle-triangle-e">N&auml;chster Tag</div></p>
           <table id="expenses"></table>
           <div id="results"><table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="saldo"></tr></table></div>
           <div id="daily-expense"></div>
        </div>
        <div id="tabs-3">
-          <p>&Uuml;bersicht f&uuml;r <input id="datum-monthly-expense" type="text"></p>
+          <p><div id="prev-month" class="ui-icon ui-icon-circle-triangle-w">Vorheriger Monat</div>
+            &Uuml;bersicht f&uuml;r <input id="datum-monthly-expense" type="text">
+            <div id="next-month" class="ui-icon ui-icon-circle-triangle-e">N&auml;chster Monat</div></p>
           <div id="monthly-view">
              <table id="month"></table>
              <table><tr id="sum_expenses"></tr><tr id="sum_income"></tr><tr id="monthly_saldo"></tr></table>
@@ -60,7 +64,9 @@
       var DB = $.couch.db(dbname);
       var Monate = ["Januar", "Februar", "M&auml;rz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
       var today = new Date;
-      var load_ref = 0; 
+      var load_ref = 0;
+
+      $("#tabs").tabs();
 
     function load(){
       load_ref = load_ref + 1;
@@ -111,7 +117,7 @@
           doc.kategorie = doc.kategorie.toLowerCase();
           load();
         },
-        success : function( response ){ success( response ) } 
+        success : function( response ){ success( response ) }
       });
       $('#abbruch-form' + form_id ).live('click', function(){ cancel() });
     }
@@ -125,7 +131,7 @@
                    render_month($("#datum-" + e.attr("id")).val().split("-"));
 		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
                  },
-                 function() { 
+                 function() {
                     e.text('');
                     render_day($("#datum-" + e.attr("id")).val().split("-"));
                  });
@@ -139,7 +145,7 @@
                    render_month($("#datum-monthly-income").val().split("-"));
 		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
                 },
-                function() { 
+                function() {
                    $("#new-income").text('');
                    render_day($("#datum-monthly-income").val().split("-"));
                 });
@@ -163,7 +169,7 @@
        $("#cancel-" + kind + "-" + id).click( function() {
           $("#" + id + "-comment").text(kommentar);
           $("#" + id + "-value").text(Number(value).toFixed(2));
-          $("#cancel-" + kind + "-" + id).text(""); 
+          $("#cancel-" + kind + "-" + id).text("");
 	  $("#edit-" + kind+ "-" + id).html('<span class="ui-icon ui-icon-pencil"></span>');
        });
 
@@ -188,9 +194,9 @@
          }
        });
     }
- 
+
     function deleteEntry( id ){
-      $("#dialog-confirm-text").html("</center>Eintrag vom <br/>" + $("#"+id+"-date").text() +"<br/>" + 
+      $("#dialog-confirm-text").html("</center>Eintrag vom <br/>" + $("#"+id+"-date").text() +"<br/>" +
                                      $("#"+ id + "-comment").text() +"<br/>wirklich löschen?</center>");
       $("#dialog-confirm").dialog({
                         resizable: false,
@@ -205,9 +211,9 @@
                                       var rev = data["_rev"];
                                       $.ajax({ type : "DELETE",
                                       url: "/" + dbname + "/" + id + "?rev=" + rev,
-                                      success: function( m ){ 
+                                      success: function( m ){
                                         ready();
-                                        $("#row-"+id).remove(); 
+                                        $("#row-"+id).remove();
 			                graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);} });},
                                    dataType : "json"});
 
@@ -243,11 +249,11 @@
            return '<tr class="row' + toggle +'" id="row-' + id +'"><td id="'+ id + '-date">' +
                   row.key[0].join('-') + '</td><td><div id="' + id + '-comment">' +
                   k.join(",") +'</div></td>' + r.join('') +
-                  '<td><div id="edit-income-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' + 
+                  '<td><div id="edit-income-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' +
                   '<td><div id="cancel-income-' + id + '"></div></td>' +
                   '<td><div id="delete-' + id + '"><span class="ui-icon ui-icon-trash"></div></td></tr>';
          });
-      
+
          ready();
          $( e ).html( header_rows + data_rows.join('') + '<td colspan="4"><hr></td>' +
                    '<td><div id="new-income-dialog" rel="edit-new-income"><span class="ui-icon ui-icon-circle-plus"></span></div></td>');
@@ -265,7 +271,7 @@
         var sum_expenses = 0;
         var res = {};
         var toggle = 1;
- 
+
         load();
         $( e ).fadeOut( 500 );
         s.fadeOut( 500 );
@@ -299,7 +305,7 @@
                return '<tr class="row' + toggle + '" id="row-' + id +'"><td id="'+ id + '-date">' +
                       row.key[0].join('-') + '</td><td><div id="' + id + '-comment">' +
                       k.join(",") +'</div></td>' + r.join('') +
-                      '<td><div id="edit-expense-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' + 
+                      '<td><div id="edit-expense-' + id + '"><span class="ui-icon ui-icon-pencil"></span></div></td>' +
                       '<td><div id="cancel-expense-' + id + '"></div></td>' +
                       '<td><div id="delete-' + id + '"><span class="ui-icon ui-icon-trash"></div></td></tr>';
              })
@@ -321,25 +327,94 @@
        }});
       }
 
-      function render_day(date){
+      function render_day(datefield, date){
         var date1 = date.map(function(e){return Number(e)}).slice(0);
         var date2 = date.map(function(e){return Number(e)}).slice(0);
+        var months = [ 31,28,31,30,31,30,31,31,30,31,30,31,30,31];
         date2[2] = date2[2]+1;
         var res = render_expenses( date1, date2, "#expenses", $("#saldo"), "new-daily-expense-dialog" );
+        $('#next-day').unbind();
+        $('#next-day' ).bind( 'click',
+          function(event){
+                var newdate = date.map(function(e){return Number(e)}).splice(0);;
+                if (newdate[2] + 1 > months[newdate[1]]){
+                   newdate[2] = 1;
+                   if (newdate[1] + 1 > 12){
+                     newdate[0] = newdate[0] + 1;
+                     newdate[1] = 1;
+                   }else {
+                     newdate[1] = newdate[1] + 1;
+                   }
+                } else {
+                   newdate[2] = newdate[2] + 1;
+                }
+                $("#" + datefield).val(newdate.join("-"))
+                event.stopImmediatePropagation();
+                render_day(datefield, newdate);
+        });
+        $('#prev-day').unbind();
+        $('#prev-day' ).bind( 'click',
+          function(event){
+                var newdate = date.map(function(e){return Number(e)}).splice(0);;
+                if (newdate[2] - 1 == 0){
+                   newdate[2] = months[newdate[1]];;
+                   if (newdate[1] - 1 == 0){
+                     newdate[0] = newdate[0] - 1;
+                     newdate[1] = 31;
+                   }else {
+                     newdate[1] = newdate[1] - 1;
+                   }
+                } else {
+                   newdate[2] = newdate[2] - 1;
+                }
+                $("#" + datefield).val(newdate.join("-"));
+                event.stopImmediatePropagation();
+                render_day(datefield, newdate);
+        });
+
      }
 
-     function render_month(date){
+     function render_month(datefield,date){
         var date1 = date.map(function(e){return Number(e)}).slice(0);
         var date2 = date.map(function(e){return Number(e)}).slice(0);
         date1[2] = 1;
         date2[2] = 32;
         render_incomes( date1, date2, "#incomes", $("#incomes-sum") );
         var res = render_expenses( date1, date2, "#month", $("#monthly_saldo"), "new-monthly-expense-dialog" );
+        $('#next-month').unbind();
+        $('#next-month' ).bind( 'click',
+          function(event){
+                var newdate = date.map(function(e){return Number(e)}).splice(0);;
+                if (newdate[1] + 1 > 12){
+                   newdate[0] = newdate[0] + 1;
+                   newdate[1] = 1;
+                } else {
+                   newdate[1] = newdate[1] + 1;
+                }
+                $("#" + datefield).val(newdate.join("-"))
+                event.stopImmediatePropagation();
+                render_month(datefield, newdate);
+        });
+        $('#prev-month').unbind();
+        $('#prev-month' ).bind( 'click',
+          function(event){
+                var newdate = date.map(function(e){return Number(e)}).splice(0);;
+                if (newdate[1] - 1 == 0){
+                   newdate[0] = newdate[0] - 1;
+                   newdate[1] = 12;
+                } else {
+                   newdate[1] = newdate[1] - 1;
+                }
+                $("#" + datefield).val(newdate.join("-"));
+                event.stopImmediatePropagation();
+                render_month(datefield, newdate);
+        });
+
      }
 
 
-     render_month([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
-     render_day([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+     render_month("datum-monthly-expense", [today.getFullYear(), today.getMonth() + 1, today.getDate()]);
+     render_day("datum-daily-expense", [today.getFullYear(), today.getMonth() + 1, today.getDate()]);
 
      $("#new-daily-expense-dialog").live('click', function(e){ addExpense( $("#daily-expense") ) });
      $("#new-monthly-expense-dialog").live('click', function(e){ addExpense( $("#monthly-expense") ) });
@@ -356,17 +431,17 @@
          deleteEntry( id );
      });
 
-      
+
      $("#datum-monthly-income").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
      $('#datum-monthly-income').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
-     $("#datum-monthly-income").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){ render_month(dateText.split("-"));}});
+     $("#datum-monthly-income").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){ render_month(this.getAttribute("id"), dateText.split("-"));}});
      $("#datum-daily-expense").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
      $('#datum-daily-expense').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
-     $("#datum-daily-expense").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){render_day(dateText.split("-"));}});
+     $("#datum-daily-expense").datepicker({dateFormat : "yy-mm-dd", onSelect : function(dateText, inst){render_day(this.getAttribute("id"), dateText.split("-"));}});
      $("#datum-monthly-expense").val([today.getFullYear(), today.getMonth() + 1, today.getDate()].join("-"));
      $('#datum-monthly-expense').datepicker('option',$.extend({showMonthAfterYear: false}, $.datepicker.regional['de']));
-     $("#datum-monthly-expense").datepicker({dateFormat : "yy-mm", onSelect : function(dateText, inst){dateText += "-1"; render_month(dateText.split("-"));}});
-     $("#tabs").tabs();
+     $("#datum-monthly-expense").datepicker({dateFormat : "yy-mm", onSelect : function(dateText, inst){dateText += "-1"; render_month(this.getAttribute("id"), dateText.split("-"));}});
+
 
      function graph_monthly_expenses( date ){
              load();
