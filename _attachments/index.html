@@ -127,13 +127,13 @@
                 function(response) {
                    ready();
                    e.text('');
-                   render_day($("#datum-" + e.attr("id")).val().split("-"));
-                   render_month($("#datum-" + e.attr("id")).val().split("-"));
+                   render_day("datum-" + e.attr("id"), $("#datum-" + e.attr("id")).val().split("-"));
+                   render_month("datum-" + e.attr("id"), $("#datum-" + e.attr("id")).val().split("-"));
 		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
                  },
                  function() {
                     e.text('');
-                    render_day($("#datum-" + e.attr("id")).val().split("-"));
+                    render_day("datum-" + e.attr("id"),$("#datum-" + e.attr("id")).val().split("-"));
                  });
     }
 
@@ -142,12 +142,12 @@
                 function(response) {
                    ready();
                    $("#new-income").text('');
-                   render_month($("#datum-monthly-income").val().split("-"));
+                   render_month("datum-monthly-income", $("#datum-monthly-income").val().split("-"));
 		   graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()]);
                 },
                 function() {
                    $("#new-income").text('');
-                   render_day($("#datum-monthly-income").val().split("-"));
+                   render_day("datum-monthly-income", $("#datum-monthly-income").val().split("-"));
                 });
     }
 
@@ -188,9 +188,9 @@
          success : function( response ) {
            ready();
            if (kind == "expense"){
-             render_day($("#datum-daily-" + kind).val().split("-"));
+             render_day($("datum-daily", "#datum-daily-" + kind).val().split("-"));
            }
-           render_month($("#datum-monthly-" + kind).val().split("-"));
+           render_month("datum-monthly", $("#datum-monthly-" + kind).val().split("-"));
          }
        });
     }
