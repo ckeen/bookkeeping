@@ -8,7 +8,7 @@ div.loading {
     position:absolute;
     top:0;left:0; /*This may prevent it from being seen if the user has scrolled down */
     color:#fff;
-    padding: 2px 2px 2px 32px;
-    background:red url(../img/ajax-loader.gif) no-repeat 2px;
+    padding: 48px 88px 2px 2px;
+    background:darkblue url(../img/ajax-loader.gif) no-repeat 2px;
     display:none;
 }
