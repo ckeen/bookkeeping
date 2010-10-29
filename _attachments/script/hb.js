@@ -139,13 +139,13 @@ $.couch.app(function(app) {
 
         function deleteEntry( id ){
             $("#dialog-confirm-text").html("</center>Eintrag vom <br/>" + $("#"+id+"-date").text() +"<br/>" +
-                                           $("#"+ id + "-comment").text() +"<br/>wirklich löschen?</center>");
+                                           $("#"+ id + "-comment").text() +"<br/>wirklich l&ouml;schen?</center>");
             $("#dialog-confirm").dialog({
                     resizable: false,
                         height:240,
                         modal: true,
                         buttons: {
-                        'Löschen': function() {
+                        'Ja, weg damit!': function() {
                             load();
                             $.ajax({ url : "/" + dbname + "/" + id,
                                         data : "",
@@ -161,7 +161,7 @@ $.couch.app(function(app) {
 
                             $(this).dialog('close');
                         },
-                            Cancel: function() {
+                            'NEIN': function() {
                             $(this).dialog('close');
                         }
                     }
@@ -385,7 +385,6 @@ $.couch.app(function(app) {
 
 
         function graph_monthly_expenses( date ){
-            load();
             DB.view(design+"/available_categories?group=true",
                     { success : function(json) {
                             var categories = json.rows.map(function(r) { return r.key; });
@@ -396,7 +395,6 @@ $.couch.app(function(app) {
                                             json.rows.forEach( function( r ) { if (months[r.key[1]] === undefined) { months[r.key[1]] = {};}
                                                     if (months[r.key[1]][r.key[2]] === undefined) { months[r.key[1]][r.key[2]] = 0;}
                                                     months[r.key[1]][r.key[2]] = r.value;});
-                                            ready();
 
                                             for ( var i in months){
                                                 if (months[i]){
@@ -428,5 +426,14 @@ $.couch.app(function(app) {
                         }});
         }
         graph_monthly_expenses([today.getFullYear(), today.getMonth() + 1, today.getDate()])
-            });
 
+
+    DB.openDoc("replicas",
+               {success: function(json) {
+                   json.hosts.map(
+                       function(h){ var request = { "source" : h, "target" : dbname }
+                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : h, target : dbname, continuous: true, filter: design+"/copy_data"  }), contentType: "application/json"},null, function(c){} );
+                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : dbname, target : h, continous : true, filter: design+"/copy_data" }), contentType: "application/json"},null, function(c){} );
+                                  })}});
+
+});
