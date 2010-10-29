@@ -412,7 +412,7 @@ $.couch.app(function(app) {
                                                 }
                                             }
                                             jQuery('#stacked-graph').tufteBar({
-                                                    colors : ['#f63353','#fead76','#107279','#10fa1bc','#1181bf','#120902','#129105','#131848','#13a04b','#1427ee','#14a8b1','#1532d4','#15bcf7','#16671a','#16c13d','#175b60','#17d583','#186fa6','#18ecc9','#1973ec'],
+                                                    colors : ['#f63353','#fead76','#107279','#10fabc','#1181bf','#120902','#129105','#131848','#13a04b','#1427ee','#14a8b1','#1532d4','#15bcf7','#16671a','#16c13d','#175b60','#17d583','#186fa6','#18ecc9','#1973ec'],
                                                         data: year,
                                                         barLabel:  function(index) {
                                                         amount = ($(this[0]).sum()).toFixed(0);
