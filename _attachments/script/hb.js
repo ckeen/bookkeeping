@@ -432,8 +432,8 @@ $.couch.app(function(app) {
                {success: function(json) {
                    json.hosts.map(
                        function(h){ var request = { "source" : h, "target" : dbname }
-                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : h, target : dbname, continuous: true, filter: design+"/copy_data"  }), contentType: "application/json"},null, function(c){} );
-                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : dbname, target : h, continous : true, filter: design+"/copy_data" }), contentType: "application/json"},null, function(c){} );
+                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : h, target : dbname, continuous: true }), contentType: "application/json"},null, function(c){} );
+                                    $.ajax( { type: "POST", url: "/_replicate", data: JSON.stringify({ source : dbname, target : h, continuous : true, filter: design+"/copy_data" }), contentType: "application/json"},null, function(c){} );
                                   })}});
 
 });
