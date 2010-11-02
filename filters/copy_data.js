@@ -1,7 +1,6 @@
 function(doc, req) {
-    if (doc.type && (( doc.type == "einnahme") || (doc.type == "ausgabe") || (doc.type == "config"))){
-        return true;
-    } else {
+    if ( doc._id.match('_design/(.*)') || ( doc.type && doc.type == "config")){
         return false;
     }
+    return true;
 }

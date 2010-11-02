@@ -27,18 +27,15 @@ function(newDoc, oldDoc, userCtx){
     if (! property) {throw({ forbidden : message}); }
   }
 
-  if (newDoc._deleted) return;
-
-    require("type");
-    if (newDoc.type == 'ausgabe'){
-      require("date");
-      require("betrag");
-      require("kommentar");
-      require("kategorie");
-    } else if (newDoc.type == 'einnahme'){
-      require("date");
-      require("kommentar");
-      require("betrag");
-      require("kommentar");
-    } 
+  if (newDoc.type && newDoc.type == 'ausgabe'){
+    require("date");
+    require("betrag");
+    require("kommentar");
+    require("kategorie");
+  } else if (newDoc.type && newDoc.type == 'einnahme'){
+    require("date");
+    require("kommentar");
+    require("betrag");
+    require("kommentar");
+  }
 }
