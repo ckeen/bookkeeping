@@ -24,6 +24,22 @@ Bookkeeping - A simple couchapp to take care of your expenses
   chouchapp push . http://youruser:yourpass@localhost:5984/dbname
   will do.
 
+* Configuration
+  Bookkeeping has now replication support! Add a document with the id
+  'replicas' which has the following structure:
+
+  {
+   "_id": "replicas",
+   "_rev": "2-4e7f92128bd6b5e89431bd553c531b3c",
+   "hosts": [
+       "http://somehosttosyncwith:5894/bookkeeping",
+       "http://otherhost:5984/bookkeeping" ],
+   "type": "config"
+  }
+
+  This causes your local couchdb to establish bidirektional
+  replication requests with each of the hosts.  If you don't want this
+  feature leave the host list empty.
 * Current flaws / Todo list
   - No user authentication is currently enforced so everyone can edit anything!
   - Just add categories as you go, the app will add them.
